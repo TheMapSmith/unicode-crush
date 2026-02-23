@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wind Map</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0f0a;
+    --grid-line: #111a11;
+    --text: #c8d8c0;
+    --muted: #4a6040;
+    --bright: #e8f4e0;
+    --calm: #2a5c2a;
+    --light: #4a8c40;
+    --moderate: #7ab870;
+    --fresh: #b8e0a8;
+    --strong: #e8f4a0;
+    --gale: #f4e060;
+    --storm: #f08020;
+    --city: #90c890;
+    --city-bright: #c8ffc8;
+    --accent: #60d060;
+    --panel-bg: #050a05;
+    --border: #1a2a1a;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Courier Prime', 'Courier New', monospace;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ── Top bar ── */
+  #topbar {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 0;
+    padding: 0 16px;
+    height: 36px;
+    background: var(--panel-bg);
+    border-bottom: 1px solid var(--border);
+    font-size: 0.72rem;
+    letter-spacing: 0.05em;
+    user-select: none;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+
+  #topbar-title {
+    color: var(--accent);
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    margin-right: 24px;
+    font-size: 0.78rem;
+  }
+
+  .tb-sep { color: var(--muted); margin: 0 10px; }
+
+  #topbar-status {
+    color: var(--muted);
+    font-style: italic;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .tb-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--muted); flex-shrink: 0; margin-right: 6px;
+    transition: background 0.3s;
+  }
+  .tb-dot.loading { background: var(--gale); animation: blink 0.8s infinite; }
+  .tb-dot.ok      { background: var(--accent); }
+  .tb-dot.error   { background: var(--storm); }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
+  /* ── Controls bar ── */
+  #ctrlbar {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 16px;
+    background: var(--panel-bg);
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+
+  .ctrl-label {
+    font-size: 0.6rem;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-right: 2px;
+  }
+
+  button {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: 'Courier Prime', monospace;
+    font-size: 0.68rem;
+    padding: 3px 10px;
+    cursor: pointer;
+    letter-spacing: 0.06em;
+    transition: color 0.15s, border-color 0.15s;
+    white-space: nowrap;
+  }
+  button:hover { color: var(--accent); border-color: var(--accent); }
+  button.active { color: var(--accent); border-color: var(--accent); }
+
+  .ctrl-divider { width: 1px; height: 18px; background: var(--border); margin: 0 4px; flex-shrink: 0; }
+
+  input[type=text] {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'Courier Prime', monospace;
+    font-size: 0.68rem;
+    padding: 3px 8px;
+    width: 78px;
+    outline: none;
+    letter-spacing: 0.04em;
+  }
+  input[type=text]:focus { border-color: var(--accent); }
+  input[type=text]::placeholder { color: var(--muted); }
+
+  /* ── Map area ── */
+  #map-wrap {
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+    cursor: crosshair;
+  }
+
+  /* The actual text grid */
+  #map {
+    position: absolute;
+    top: 0; left: 0;
+    font-family: 'Courier Prime', 'Courier New', monospace;
+    font-size: 13px;
+    line-height: 1.35;
+    letter-spacing: 0.08em;
+    white-space: pre;
+    padding: 6px 10px;
+    color: var(--moderate);
+    /* allow text selection / copy */
+    user-select: text;
+    cursor: text;
+    tab-size: 1;
+  }
+
+  /* ── Legend ── */
+  #legend {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 0;
+    padding: 4px 16px;
+    background: var(--panel-bg);
+    border-top: 1px solid var(--border);
+    font-size: 0.6rem;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    overflow: hidden;
+    white-space: nowrap;
+  }
+
+  .legend-item { margin-right: 16px; }
+  .legend-item span { font-size: 0.75rem; }
+
+  /* Speed-tier colors applied via spans in the pre */
+  .s0 { color: var(--calm); }
+  .s1 { color: var(--light); }
+  .s2 { color: var(--moderate); }
+  .s3 { color: var(--fresh); }
+  .s4 { color: var(--strong); }
+  .s5 { color: var(--gale); }
+  .s6 { color: var(--storm); }
+
+  .city-name { color: var(--city); font-weight: 700; }
+  .city-arrow { color: var(--city-bright); }
+
+  .graticule { color: var(--grid-line); }
+  .lat-label  { color: var(--muted); }
+
+  /* ── Tooltip ── */
+  #tooltip {
+    position: fixed;
+    pointer-events: none;
+    background: var(--panel-bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'Courier Prime', monospace;
+    font-size: 0.65rem;
+    padding: 6px 10px;
+    line-height: 1.8;
+    letter-spacing: 0.05em;
+    opacity: 0;
+    transition: opacity 0.15s;
+    z-index: 99;
+    white-space: nowrap;
+  }
+  #tooltip.show { opacity: 1; }
+  #tooltip .tt-val { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <span id="topbar-title">WIND MAP</span>
+  <div class="tb-dot" id="tb-dot"></div>
+  <span id="topbar-status">initialising…</span>
+  <span class="tb-sep">|</span>
+  <span id="tb-coords" style="color:var(--muted)">hover for coords</span>
+</div>
+
+<div id="ctrlbar">
+  <span class="ctrl-label">Region</span>
+  <button class="region-btn active" data-region="namerica">N. America</button>
+  <button class="region-btn" data-region="europe">Europe</button>
+  <button class="region-btn" data-region="asia">Asia–Pac</button>
+  <button class="region-btn" data-region="world">World</button>
+
+  <div class="ctrl-divider"></div>
+  <span class="ctrl-label">Custom bbox</span>
+  <input type="text" id="in-n" placeholder="N lat" value="">
+  <input type="text" id="in-s" placeholder="S lat" value="">
+  <input type="text" id="in-w" placeholder="W lon" value="">
+  <input type="text" id="in-e" placeholder="E lon" value="">
+  <button id="btn-go">Go</button>
+
+  <div class="ctrl-divider"></div>
+  <span class="ctrl-label">Units</span>
+  <button class="unit-btn active" data-unit="kmh">km/h</button>
+  <button class="unit-btn" data-unit="mph">mph</button>
+  <button class="unit-btn" data-unit="ms">m/s</button>
+
+  <div class="ctrl-divider"></div>
+  <button id="btn-refresh">↺ Refresh</button>
+  <button id="btn-copy">⎘ Copy text</button>
+</div>
+
+<div id="map-wrap">
+  <pre id="map">Loading wind data…</pre>
+</div>
+
+<div id="legend">
+  <span class="legend-item"><span class="s0">→</span> calm &lt;5</span>
+  <span class="legend-item"><span class="s1">→</span> light 5–15</span>
+  <span class="legend-item"><span class="s2">→</span> moderate 15–30</span>
+  <span class="legend-item"><span class="s3">→</span> fresh 30–50</span>
+  <span class="legend-item"><span class="s4">→</span> strong 50–75</span>
+  <span class="legend-item"><span class="s5">→</span> gale 75–100</span>
+  <span class="legend-item"><span class="s6">→</span> storm &gt;100</span>
+  <span style="margin-left:16px;color:var(--city)">■ city</span>
+  <span class="legend-item" style="margin-left:16px">units: km/h</span>
+  <span style="margin-left:auto;color:var(--muted)">open-meteo.com · select all &amp; copy to get plain text</span>
+</div>
+
+<div id="tooltip"></div>
+
+<script>
+'use strict';
+
+// ─── Regions ────────────────────────────────────────────────────────────────
+
+const REGIONS = {
+  namerica: { n: 60, s: 20, w: -130, e: -60, label: 'North America' },
+  europe:   { n: 72, s: 34, w: -15,  e: 42,  label: 'Europe' },
+  asia:     { n: 55, s: -10, w: 70,  e: 155, label: 'Asia–Pacific' },
+  world:    { n: 75, s: -60, w: -180, e: 180, label: 'World' },
+};
+
+// Cities: [name, lat, lon]
+const CITIES = [
+  // N America
+  ['NYC',      40.71, -74.01],
+  ['LA',       34.05,-118.24],
+  ['Chicago',  41.88, -87.63],
+  ['Miami',    25.77, -80.19],
+  ['Vancouver',49.25,-123.12],
+  ['Toronto',  43.65, -79.38],
+  ['Denver',   39.74,-104.98],
+  ['Seattle',  47.61,-122.33],
+  ['Dallas',   32.78, -96.80],
+  ['Montreal', 45.50, -73.57],
+  // Europe
+  ['London',   51.51,  -0.13],
+  ['Paris',    48.86,   2.35],
+  ['Berlin',   52.52,  13.40],
+  ['Madrid',   40.42,  -3.70],
+  ['Rome',     41.90,  12.50],
+  ['Moscow',   55.75,  37.62],
+  ['Istanbul', 41.01,  28.95],
+  ['Oslo',     59.91,  10.75],
+  ['Lisbon',   38.72,  -9.14],
+  ['Warsaw',   52.23,  21.01],
+  ['Vienna',   48.21,  16.37],
+  ['Amsterdam',52.37,   4.90],
+  ['Kyiv',     50.45,  30.52],
+  // Asia-Pac
+  ['Tokyo',    35.69, 139.69],
+  ['Beijing',  39.91, 116.39],
+  ['Shanghai', 31.23, 121.47],
+  ['Mumbai',   19.08,  72.88],
+  ['Delhi',    28.61,  77.21],
+  ['Bangkok',  13.75, 100.52],
+  ['Singapore', 1.35, 103.82],
+  ['Sydney',  -33.87, 151.21],
+  ['Seoul',    37.57, 126.98],
+  ['Jakarta',  -6.21, 106.85],
+  ['Karachi',  24.86,  67.01],
+  ['Dubai',    25.20,  55.27],
+  // World extras
+  ['Cairo',    30.04,  31.24],
+  ['Lagos',     6.45,   3.40],
+  ['Nairobi',  -1.29,  36.82],
+  ['SP',      -23.55, -46.63],  // São Paulo
+  ['Buenos A.',-34.61, -58.38],
+  ['Bogota',    4.71, -74.07],
+  ['Lima',     -12.05, -77.04],
+  ['Mexico C.',19.43, -99.13],
+];
+
+// ─── Wind math ──────────────────────────────────────────────────────────────
+
+// 8-directional arrows. Met direction = FROM. We rotate +180 to show "going to".
+// Index 0=N-going(from S), clockwise
+const DIR8 = ['↑','↗','→','↘','↓','↙','←','↖'];
+
+function dirArrow(deg) {
+  const going = (deg + 180) % 360;
+  return DIR8[Math.round(going / 45) % 8];
+}
+
+function speedClass(kmh) {
+  if (kmh <  5) return 's0';
+  if (kmh < 15) return 's1';
+  if (kmh < 30) return 's2';
+  if (kmh < 50) return 's3';
+  if (kmh < 75) return 's4';
+  if (kmh < 100) return 's5';
+  return 's6';
+}
+
+function degToCompass(d) {
+  const a = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+  return a[Math.round(d / 22.5) % 16];
+}
+
+function toKmh(v, unit) {
+  if (unit === 'mph') return v * 1.60934;
+  if (unit === 'ms')  return v * 3.6;
+  return v;
+}
+
+function fmtSpeed(v, unit) {
+  return Math.round(v) + (unit === 'kmh' ? 'km/h' : unit === 'mph' ? 'mph' : 'm/s');
+}
+
+// ─── API / fetch ────────────────────────────────────────────────────────────
+
+const CACHE = new Map();
+const CACHE_TTL = 120_000;
+
+async function fetchPoint(lat, lon, unit) {
+  const key = `${lat.toFixed(2)},${lon.toFixed(2)},${unit}`;
+  const c = CACHE.get(key);
+  if (c && Date.now() - c.ts < CACHE_TTL) return c.data;
+
+  const wUnit = unit === 'mph' ? 'mph' : unit === 'ms' ? 'ms' : 'kmh';
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
+    `&current=wind_speed_10m,wind_direction_10m` +
+    `&wind_speed_unit=${wUnit}&forecast_days=1&timezone=auto`;
+
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const j = await res.json();
+  const data = {
+    speed: j.current.wind_speed_10m,
+    dir:   j.current.wind_direction_10m,
+  };
+  CACHE.set(key, { data, ts: Date.now() });
+  return data;
+}
+
+// Fetch a grid of sample points, then interpolate to fill the display
+async function fetchGrid(bbox, unit, onProgress) {
+  // Sample points: denser for small regions, coarser for world
+  const latSpan = bbox.n - bbox.s;
+  const lonSpan = bbox.e - bbox.w;
+
+  // How many fetch points (not display cells — display is much finer)
+  const nRows = Math.max(4, Math.min(10, Math.round(latSpan / 8)));
+  const nCols = Math.max(6, Math.min(16, Math.round(lonSpan / 10)));
+
+  const points = []; // { lat, lon, speed, dir }
+  const total = nRows * nCols;
+  let done = 0;
+
+  // Build fetch list
+  const tasks = [];
+  for (let r = 0; r < nRows; r++) {
+    for (let c = 0; c < nCols; c++) {
+      const lat = bbox.n - (r + 0.5) * (latSpan / nRows);
+      const lon = bbox.w + (c + 0.5) * (lonSpan / nCols);
+      tasks.push({ lat: parseFloat(lat.toFixed(3)), lon: parseFloat(lon.toFixed(3)) });
+    }
+  }
+
+  // Batch fetches — 8 at a time to avoid overwhelming the API
+  const BATCH = 8;
+  for (let i = 0; i < tasks.length; i += BATCH) {
+    const batch = tasks.slice(i, i + BATCH);
+    const results = await Promise.allSettled(batch.map(t => fetchPoint(t.lat, t.lon, unit)));
+    results.forEach((res, j) => {
+      done++;
+      const t = batch[j];
+      if (res.status === 'fulfilled') {
+        points.push({ lat: t.lat, lon: t.lon, ...res.value });
+      }
+      onProgress(done, total);
+    });
+  }
+
+  return points;
+}
+
+// ─── Interpolation ──────────────────────────────────────────────────────────
+
+// Inverse-distance-weighted interpolation for a query (lat, lon)
+function idwPoint(points, lat, lon) {
+  const EPS = 1e-9;
+  let sumW = 0, sumSpeedW = 0, sumSinW = 0, sumCosW = 0;
+
+  for (const p of points) {
+    const dlat = p.lat - lat, dlon = p.lon - lon;
+    const dist2 = dlat*dlat + dlon*dlon + EPS;
+    const w = 1 / dist2;
+    sumW += w;
+    sumSpeedW += w * p.speed;
+    // Circular mean for direction
+    const rad = p.dir * Math.PI / 180;
+    sumSinW += w * Math.sin(rad);
+    sumCosW += w * Math.cos(rad);
+  }
+
+  const speed = sumSpeedW / sumW;
+  const dir = (Math.atan2(sumSinW / sumW, sumCosW / sumW) * 180 / Math.PI + 360) % 360;
+  return { speed, dir };
+}
+
+// ─── Grid rendering ─────────────────────────────────────────────────────────
+
+// Compute the character grid dimensions from the container
+function gridDims() {
+  const wrap = document.getElementById('map-wrap');
+  const W = wrap.clientWidth  - 20; // padding
+  const H = wrap.clientHeight - 12;
+  // Measure a single character
+  const probe = document.getElementById('map');
+  const style = getComputedStyle(probe);
+  const fs = parseFloat(style.fontSize) || 13;
+  const lh = parseFloat(style.lineHeight) || fs * 1.35;
+  // Courier Prime: em width ≈ 0.6 of font-size, with letter-spacing
+  const cw = fs * 0.601 + 1.04; // approx char width px (letter-spacing 0.08em)
+  const cols = Math.max(40, Math.floor(W / cw));
+  const rows = Math.max(15, Math.floor(H / lh));
+  return { cols, rows, cw, lh, fs };
+}
+
+// Build the display grid as a 2D array of {char, cls, lat, lon, speed, dir, type}
+// type: 'arrow' | 'city' | 'graticule' | 'blank' | 'lat-label' | 'lon-label'
+function buildGrid(bbox, points, cities, unit, dims) {
+  const { cols, rows } = dims;
+
+  // Initialize with nulls
+  const grid = Array.from({ length: rows }, () =>
+    Array.from({ length: cols }, () => null)
+  );
+
+  // Helper: lat/lon → row/col (floating)
+  function ll2rc(lat, lon) {
+    const r = (bbox.n - lat)  / (bbox.n - bbox.s) * (rows - 1);
+    const c = (lon - bbox.w) / (bbox.e - bbox.w) * (cols - 1);
+    return { r, c };
+  }
+
+  // Fill every cell with interpolated wind
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const lat = bbox.n - r / (rows - 1) * (bbox.n - bbox.s);
+      const lon = bbox.w + c / (cols - 1) * (bbox.e - bbox.w);
+      const { speed, dir } = idwPoint(points, lat, lon);
+      const kmh = toKmh(speed, unit);
+      grid[r][c] = {
+        char: dirArrow(dir),
+        cls: speedClass(kmh),
+        lat, lon, speed, dir,
+        type: 'arrow',
+      };
+    }
+  }
+
+  // Draw graticule lines (every 10° lat, 20° lon)
+  const latStep = bbox.n - bbox.s > 60 ? 20 : bbox.n - bbox.s > 30 ? 10 : 5;
+  const lonStep = bbox.e - bbox.w > 120 ? 40 : bbox.e - bbox.w > 60 ? 20 : 10;
+
+  // Lat lines — render as '·' on the row
+  for (let lat = Math.ceil(bbox.s / latStep) * latStep; lat <= bbox.n; lat += latStep) {
+    const { r } = ll2rc(lat, bbox.w);
+    const ri = Math.round(r);
+    if (ri >= 0 && ri < rows) {
+      for (let c = 0; c < cols; c++) {
+        const cell = grid[ri][c];
+        if (cell && cell.type === 'arrow') {
+          cell.graticule = true;
+        }
+      }
+      // Lat label at column 0
+      const lbl = (lat >= 0 ? '+' : '') + lat + '°';
+      for (let ci = 0; ci < Math.min(lbl.length, cols); ci++) {
+        grid[ri][ci] = { char: lbl[ci], cls: 'lat-label', lat, lon: bbox.w, type: 'label' };
+      }
+    }
+  }
+
+  // Lon labels on first row
+  for (let lon = Math.ceil(bbox.w / lonStep) * lonStep; lon <= bbox.e; lon += lonStep) {
+    const { c } = ll2rc(bbox.n, lon);
+    const ci = Math.round(c);
+    const lbl = (lon >= 0 ? '+' : '') + lon + '°';
+    const start = Math.max(0, ci - Math.floor(lbl.length / 2));
+    for (let k = 0; k < lbl.length && start + k < cols; k++) {
+      if (start + k >= 0) {
+        grid[0][start + k] = { char: lbl[k], cls: 'lat-label', lat: bbox.n, lon, type: 'label' };
+      }
+    }
+  }
+
+  // Place cities — overwrite arrows
+  const visibleCities = cities.filter(([,lat,lon]) =>
+    lat >= bbox.s && lat <= bbox.n && lon >= bbox.w && lon <= bbox.e
+  );
+
+  for (const [name, lat, lon] of visibleCities) {
+    const { r, c } = ll2rc(lat, lon);
+    const ri = Math.round(r), ci = Math.round(c);
+    if (ri < 0 || ri >= rows || ci < 0 || ci >= cols) continue;
+
+    // Get wind at city location
+    const { speed, dir } = idwPoint(points, lat, lon);
+    const kmh = toKmh(speed, unit);
+
+    // City arrow
+    grid[ri][ci] = {
+      char: dirArrow(dir),
+      cls: 'city-arrow',
+      lat, lon, speed, dir, kmh,
+      type: 'city',
+      cityName: name,
+    };
+
+    // City label — prefer to the right, fall back left
+    const labelStr = name;
+    let labelStart = ci + 1;
+    if (labelStart + labelStr.length > cols) labelStart = ci - labelStr.length - 1;
+
+    for (let k = 0; k < labelStr.length; k++) {
+      const lc = labelStart + k;
+      if (lc < 0 || lc >= cols) continue;
+      const existing = grid[ri][lc];
+      // Don't overwrite another city arrow
+      if (existing && existing.type === 'city') continue;
+      grid[ri][lc] = {
+        char: labelStr[k],
+        cls: 'city-name',
+        lat, lon, speed, dir, kmh,
+        type: 'city-label',
+        cityName: name,
+      };
+    }
+  }
+
+  return grid;
+}
+
+// Render grid to HTML (with span wrapping for color) + a plain-text version
+function renderGrid(grid) {
+  const rows = grid.length;
+  const cols = grid[0].length;
+
+  let html = '';
+  let plain = '';
+
+  for (let r = 0; r < rows; r++) {
+    let rowHtml = '';
+    let rowPlain = '';
+    for (let c = 0; c < cols; c++) {
+      const cell = grid[r][c];
+      const ch = cell ? cell.char : ' ';
+      const cls = cell ? cell.cls : '';
+      rowPlain += ch;
+
+      if (!cell || !cls) {
+        rowHtml += ch === ' ' ? ' ' : escHtml(ch);
+      } else {
+        // Build data attrs for tooltip
+        let data = '';
+        if (cell.speed !== undefined) {
+          data = ` data-r="${r}" data-c="${c}"`;
+        }
+        rowHtml += `<span class="${cls}"${data}>${escHtml(ch)}</span>`;
+      }
+    }
+    html  += rowHtml + '\n';
+    plain += rowPlain + '\n';
+  }
+
+  return { html, plain };
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ─── App state ──────────────────────────────────────────────────────────────
+
+let currentBbox   = REGIONS.namerica;
+let currentUnit   = 'kmh';
+let currentPoints = [];
+let currentGrid   = null;
+let currentDims   = null;
+let plainText     = '';
+let fetchAbort    = null;
+
+const mapEl     = document.getElementById('map');
+const statusEl  = document.getElementById('topbar-status');
+const dotEl     = document.getElementById('tb-dot');
+const coordsEl  = document.getElementById('tb-coords');
+const tooltipEl = document.getElementById('tooltip');
+
+function setStatus(state, msg) {
+  dotEl.className = 'tb-dot' + (state ? ' ' + state : '');
+  statusEl.textContent = msg;
+}
+
+// ─── Main render flow ───────────────────────────────────────────────────────
+
+async function loadAndRender() {
+  if (fetchAbort) fetchAbort.abort();
+  fetchAbort = new AbortController();
+
+  const bbox = currentBbox;
+  const unit = currentUnit;
+
+  setStatus('loading', 'Fetching wind data…');
+  mapEl.innerHTML = 'Fetching ' + (bbox.label || 'region') + '…\n\nThis may take a few seconds (batching API calls)…';
+
+  try {
+    const points = await fetchGrid(bbox, unit, (done, total) => {
+      setStatus('loading', `Fetching… ${done}/${total} points`);
+    });
+
+    if (!points.length) throw new Error('No data returned');
+
+    currentPoints = points;
+    renderMap();
+
+    const ts = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    setStatus('ok', `${bbox.label || 'Custom region'} · ${points.length} sample points · ${ts}`);
+  } catch (err) {
+    if (err.name === 'AbortError') return;
+    setStatus('error', 'Fetch error: ' + err.message);
+    mapEl.textContent = '[Error fetching data: ' + err.message + ']';
+  }
+}
+
+function renderMap() {
+  const dims = gridDims();
+  currentDims = dims;
+  const grid = buildGrid(currentBbox, currentPoints, CITIES, currentUnit, dims);
+  currentGrid = grid;
+  const { html, plain } = renderGrid(grid);
+  plainText = plain;
+  mapEl.innerHTML = html;
+}
+
+// ─── Tooltip on hover ───────────────────────────────────────────────────────
+
+mapEl.addEventListener('mousemove', (e) => {
+  const span = e.target.closest('span[data-r]');
+  if (!span || !currentGrid) {
+    tooltipEl.classList.remove('show');
+    coordsEl.textContent = 'hover for coords';
+    return;
+  }
+  const r = +span.dataset.r, c = +span.dataset.c;
+  const cell = currentGrid[r]?.[c];
+  if (!cell) { tooltipEl.classList.remove('show'); return; }
+
+  const kmh = toKmh(cell.speed, currentUnit);
+  const compass = degToCompass(cell.dir);
+  const latStr = cell.lat.toFixed(2) + '°' + (cell.lat >= 0 ? 'N' : 'S');
+  const lonStr = Math.abs(cell.lon).toFixed(2) + '°' + (cell.lon >= 0 ? 'E' : 'W');
+
+  coordsEl.textContent = `${latStr} ${lonStr}`;
+
+  let inner = `<span class="tt-val">${latStr} ${lonStr}</span>\n`;
+  if (cell.cityName) inner += `<span class="tt-val">${cell.cityName}</span>\n`;
+  inner += `Wind  <span class="tt-val">${fmtSpeed(cell.speed, currentUnit)}</span>\n`;
+  inner += `From  <span class="tt-val">${Math.round(cell.dir)}° ${compass}</span>\n`;
+  inner += `Arrow <span class="tt-val">${dirArrow(cell.dir)}</span>`;
+
+  tooltipEl.innerHTML = inner;
+  tooltipEl.classList.add('show');
+
+  const tx = Math.min(e.clientX + 14, window.innerWidth - 180);
+  const ty = Math.min(e.clientY + 14, window.innerHeight - 120);
+  tooltipEl.style.left = tx + 'px';
+  tooltipEl.style.top  = ty + 'px';
+});
+
+mapEl.addEventListener('mouseleave', () => {
+  tooltipEl.classList.remove('show');
+  coordsEl.textContent = 'hover for coords';
+});
+
+// ─── Controls ───────────────────────────────────────────────────────────────
+
+document.querySelectorAll('.region-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.region-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentBbox = { ...REGIONS[btn.dataset.region] };
+    // Clear custom bbox inputs
+    ['in-n','in-s','in-w','in-e'].forEach(id => document.getElementById(id).value = '');
+    loadAndRender();
+  });
+});
+
+document.querySelectorAll('.unit-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.unit-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentUnit = btn.dataset.unit;
+    // Update legend label
+    document.querySelector('#legend .legend-item:last-of-type').textContent =
+      'units: ' + (currentUnit === 'kmh' ? 'km/h' : currentUnit);
+    CACHE.clear();
+    loadAndRender();
+  });
+});
+
+document.getElementById('btn-go').addEventListener('click', () => {
+  const n = parseFloat(document.getElementById('in-n').value);
+  const s = parseFloat(document.getElementById('in-s').value);
+  const w = parseFloat(document.getElementById('in-w').value);
+  const e = parseFloat(document.getElementById('in-e').value);
+  if ([n,s,w,e].some(isNaN)) { setStatus('error', 'Invalid bbox — need N,S,W,E'); return; }
+  if (n <= s || e <= w)      { setStatus('error', 'Invalid bbox: need N>S, E>W'); return; }
+  currentBbox = { n, s, w, e, label: `Custom (${s}°–${n}°N, ${w}°–${e}°E)` };
+  document.querySelectorAll('.region-btn').forEach(b => b.classList.remove('active'));
+  loadAndRender();
+});
+
+['in-n','in-s','in-w','in-e'].forEach(id => {
+  document.getElementById(id).addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('btn-go').click();
+  });
+});
+
+document.getElementById('btn-refresh').addEventListener('click', () => {
+  CACHE.clear();
+  loadAndRender();
+});
+
+document.getElementById('btn-copy').addEventListener('click', () => {
+  if (!plainText) return;
+  navigator.clipboard.writeText(plainText).then(() => {
+    const btn = document.getElementById('btn-copy');
+    btn.textContent = '✓ Copied!';
+    setTimeout(() => btn.textContent = '⎘ Copy text', 1800);
+  });
+});
+
+// ─── Resize ─────────────────────────────────────────────────────────────────
+
+let resizeTimer;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => {
+    if (currentPoints.length) renderMap();
+  }, 200);
+});
+
+// ─── Init ────────────────────────────────────────────────────────────────────
+
+loadAndRender();
+</script>
+</body>
+</html>
