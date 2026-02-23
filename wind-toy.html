@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wind Toy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #0b1120;
+    --navy2: #111827;
+    --panel: #0f1e36;
+    --panel2: #162340;
+    --cream: #f0e6cc;
+    --cream2: #c9b99a;
+    --amber: #e8a430;
+    --amber2: #f5c96a;
+    --blue: #4a9eff;
+    --dim: #3a4a60;
+    --border: #1e2f4a;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--navy);
+    color: var(--cream);
+    font-family: 'Space Mono', monospace;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0 16px 48px;
+    position: relative;
+    overflow-x: hidden;
+  }
+
+  /* Subtle grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(var(--border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 40px 40px;
+    opacity: 0.35;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Vignette */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(ellipse at center, transparent 40%, #0b112088 100%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .page-content {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 820px;
+  }
+
+  /* ── Header ── */
+  header {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    padding: 36px 0 28px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 28px;
+  }
+
+  h1 {
+    font-family: 'Instrument Serif', serif;
+    font-size: 2.2rem;
+    color: var(--cream);
+    letter-spacing: 0.02em;
+    line-height: 1;
+  }
+
+  .header-sub {
+    font-size: 0.65rem;
+    color: var(--cream2);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    padding-bottom: 2px;
+  }
+
+  .header-source {
+    margin-left: auto;
+    font-size: 0.6rem;
+    color: var(--dim);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  /* ── Controls ── */
+  .controls {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    margin-bottom: 24px;
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  label {
+    font-size: 0.6rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--cream2);
+  }
+
+  input[type="text"] {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--cream);
+    font-family: 'Space Mono', monospace;
+    font-size: 0.82rem;
+    padding: 8px 12px;
+    border-radius: 4px;
+    width: 120px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  input[type="text"]:focus { border-color: var(--amber); }
+
+  .presets {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    align-items: flex-end;
+  }
+
+  .preset-label {
+    font-size: 0.6rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--cream2);
+    margin-bottom: 5px;
+    display: block;
+  }
+
+  .preset-row {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .preset-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+
+  button {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--cream2);
+    font-family: 'Space Mono', monospace;
+    font-size: 0.7rem;
+    padding: 8px 14px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s, background 0.15s;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+  }
+
+  button:hover { border-color: var(--amber); color: var(--amber); }
+  button.active { border-color: var(--amber); color: var(--amber); background: #1c2a10; }
+
+  .unit-toggle {
+    display: flex;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .unit-toggle button {
+    border: none;
+    border-radius: 0;
+    padding: 8px 12px;
+  }
+
+  .unit-toggle button + button { border-left: 1px solid var(--border); }
+  .unit-toggle button.active { background: var(--amber); color: var(--navy); font-weight: 700; }
+
+  .unit-field { display: flex; flex-direction: column; gap: 5px; }
+
+  /* ── Status ── */
+  .status-bar {
+    height: 20px;
+    font-size: 0.65rem;
+    color: var(--dim);
+    letter-spacing: 0.08em;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .status-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--dim);
+    flex-shrink: 0;
+    transition: background 0.3s;
+  }
+
+  .status-dot.loading { background: var(--amber); animation: pulse 1s infinite; }
+  .status-dot.ok { background: #4ade80; }
+  .status-dot.error { background: #f87171; }
+
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  /* ── Main card ── */
+  .main-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 32px 36px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 40px;
+    min-height: 200px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Corner decoration */
+  .main-card::before {
+    content: '';
+    position: absolute;
+    top: 0; right: 0;
+    width: 200px; height: 200px;
+    background: radial-gradient(circle at top right, #1e3a5f22, transparent 70%);
+    pointer-events: none;
+  }
+
+  .big-arrow-wrap {
+    flex-shrink: 0;
+    width: 120px;
+    height: 120px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    position: relative;
+  }
+
+  /* Compass ring tick marks */
+  .big-arrow-wrap::after {
+    content: '';
+    position: absolute;
+    inset: 6px;
+    border-radius: 50%;
+    border: 1px dashed var(--dim);
+    opacity: 0.5;
+  }
+
+  .big-arrow {
+    font-size: 4rem;
+    line-height: 1;
+    color: var(--amber);
+    transition: transform 0.6s cubic-bezier(0.34,1.56,0.64,1);
+    display: block;
+    position: relative;
+    z-index: 1;
+    filter: drop-shadow(0 0 12px var(--amber2));
+    transform-origin: center;
+  }
+
+  .now-readout {
+    flex: 1;
+  }
+
+  .now-speed {
+    font-family: 'Instrument Serif', serif;
+    font-size: 3.8rem;
+    color: var(--cream);
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+
+  .now-unit {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.9rem;
+    color: var(--cream2);
+    margin-left: 6px;
+  }
+
+  .now-detail {
+    font-size: 0.7rem;
+    color: var(--cream2);
+    letter-spacing: 0.08em;
+    margin-top: 10px;
+    line-height: 1.8;
+  }
+
+  .now-detail span { color: var(--amber2); }
+
+  .gust-pill {
+    display: inline-block;
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 1px 7px;
+    font-size: 0.65rem;
+    color: var(--cream2);
+    margin-top: 8px;
+    letter-spacing: 0.06em;
+  }
+
+  .compass-label {
+    font-size: 2rem;
+    color: var(--amber2);
+    opacity: 0.7;
+    margin-left: 8px;
+    font-family: 'Instrument Serif', serif;
+    font-style: italic;
+  }
+
+  /* ── Timeline ── */
+  .timeline-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 24px 28px;
+    margin-bottom: 16px;
+  }
+
+  .card-label {
+    font-size: 0.6rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--dim);
+    margin-bottom: 18px;
+  }
+
+  .timeline {
+    display: flex;
+    gap: 2px;
+    overflow-x: auto;
+    padding-bottom: 8px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  .timeline::-webkit-scrollbar { height: 4px; }
+  .timeline::-webkit-scrollbar-track { background: transparent; }
+  .timeline::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .hour-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    min-width: 44px;
+    padding: 8px 4px;
+    border-radius: 4px;
+    cursor: default;
+    transition: background 0.15s;
+    position: relative;
+  }
+
+  .hour-col:hover { background: var(--panel2); }
+
+  .hour-col.now-col {
+    background: var(--panel2);
+    border: 1px solid var(--border);
+  }
+
+  .hour-col.now-col::before {
+    content: 'NOW';
+    position: absolute;
+    top: -18px;
+    font-size: 0.5rem;
+    letter-spacing: 0.12em;
+    color: var(--amber);
+  }
+
+  .hour-time {
+    font-size: 0.58rem;
+    color: var(--dim);
+    letter-spacing: 0.05em;
+  }
+
+  .hour-col.now-col .hour-time { color: var(--amber2); }
+
+  .hour-arrow {
+    font-size: 1.2rem;
+    line-height: 1;
+    color: var(--cream2);
+    transition: transform 0.4s ease;
+  }
+
+  .hour-col:hover .hour-arrow { color: var(--amber); }
+
+  .hour-speed {
+    font-size: 0.58rem;
+    color: var(--cream2);
+    letter-spacing: 0.03em;
+  }
+
+  .hour-bar {
+    width: 28px;
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-top: 2px;
+  }
+
+  .hour-bar-fill {
+    height: 100%;
+    background: var(--amber);
+    border-radius: 2px;
+    transition: width 0.4s ease;
+  }
+
+  /* Speed tiers — arrow colors */
+  .tier-calm { color: #6b8fa8; }
+  .tier-light { color: #8db8c8; }
+  .tier-moderate { color: var(--cream2); }
+  .tier-fresh { color: var(--amber2); }
+  .tier-strong { color: var(--amber); }
+  .tier-storm { color: #f87171; }
+
+  /* ── Empty / Error states ── */
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    color: var(--dim);
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+    padding: 40px 0;
+    width: 100%;
+  }
+
+  .empty-arrow {
+    font-size: 3rem;
+    opacity: 0.3;
+    animation: spin 8s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Toast ── */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: #1a0a0a;
+    border: 1px solid #f87171;
+    color: #fca5a5;
+    font-size: 0.7rem;
+    padding: 10px 20px;
+    border-radius: 4px;
+    z-index: 99;
+    transition: transform 0.3s ease;
+    letter-spacing: 0.06em;
+    white-space: nowrap;
+  }
+
+  .toast.visible { transform: translateX(-50%) translateY(0); }
+
+  /* ── Footer ── */
+  footer {
+    margin-top: 24px;
+    font-size: 0.6rem;
+    color: var(--dim);
+    letter-spacing: 0.1em;
+    text-align: center;
+    line-height: 2;
+  }
+
+  /* ── Responsive ── */
+  @media (max-width: 560px) {
+    h1 { font-size: 1.6rem; }
+    .main-card { flex-direction: column; align-items: flex-start; gap: 20px; padding: 20px; }
+    .big-arrow-wrap { width: 90px; height: 90px; }
+    .big-arrow { font-size: 3rem; }
+    .now-speed { font-size: 2.8rem; }
+    .controls { gap: 8px; }
+    input[type="text"] { width: 100px; }
+  }
+</style>
+</head>
+<body>
+<div class="page-content">
+
+<header>
+  <div>
+    <h1>Wind Toy</h1>
+    <div class="header-sub">Unicode Wind Visualizer</div>
+  </div>
+  <div class="header-source">Open-Meteo API &nbsp;·&nbsp; No auth required</div>
+</header>
+
+<div class="controls">
+  <div class="field">
+    <label>Latitude</label>
+    <input type="text" id="lat" value="40.7128" placeholder="40.7128">
+  </div>
+  <div class="field">
+    <label>Longitude</label>
+    <input type="text" id="lon" value="-74.0060" placeholder="-74.0060">
+  </div>
+  <div class="preset-row">
+    <span class="preset-label">Presets</span>
+    <div class="preset-btns">
+      <button class="preset-btn" data-lat="40.7128" data-lon="-74.0060">NYC</button>
+      <button class="preset-btn" data-lat="37.7749" data-lon="-122.4194">SF</button>
+      <button class="preset-btn" data-lat="51.5074" data-lon="-0.1278">London</button>
+      <button class="preset-btn" data-lat="35.6762" data-lon="139.6503">Tokyo</button>
+      <button id="random-btn">⚄ Random</button>
+    </div>
+  </div>
+  <div class="unit-field">
+    <label>Units</label>
+    <div class="unit-toggle">
+      <button class="unit-btn active" data-unit="kmh">km/h</button>
+      <button class="unit-btn" data-unit="mph">mph</button>
+      <button class="unit-btn" data-unit="ms">m/s</button>
+    </div>
+  </div>
+</div>
+
+<div class="status-bar">
+  <div class="status-dot" id="status-dot"></div>
+  <span id="status-text">Enter coordinates to fetch wind data</span>
+</div>
+
+<!-- Main "now" card -->
+<div class="main-card" id="main-card">
+  <div class="empty-state" id="empty-now">
+    <div class="empty-arrow">↻</div>
+    <div>Awaiting data…</div>
+  </div>
+  <div id="now-content" style="display:none; display:contents">
+    <div class="big-arrow-wrap" id="arrow-wrap">
+      <span class="big-arrow" id="big-arrow">→</span>
+    </div>
+    <div class="now-readout">
+      <div>
+        <span class="now-speed" id="now-speed">—</span>
+        <span class="now-unit" id="now-unit">km/h</span>
+        <span class="compass-label" id="compass-label"></span>
+      </div>
+      <div class="now-detail" id="now-detail"></div>
+      <div class="gust-pill" id="gust-pill" style="display:none"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 24h timeline -->
+<div class="timeline-card">
+  <div class="card-label">Next 24 Hours</div>
+  <div class="timeline" id="timeline">
+    <div class="empty-state">
+      <div>No data yet</div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  Wind direction: arrows show where wind is heading &nbsp;·&nbsp; Data: <a href="https://open-meteo.com" style="color:var(--dim)">open-meteo.com</a>
+</footer>
+
+</div><!-- /page-content -->
+
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+
+// ── Wind Math ──────────────────────────────────────────────────────────────
+
+// 8-directional arrows. Wind direction = FROM. We show where it's GOING → +180°
+// Arrow order: N, NE, E, SE, S, SW, W, NW (from direction)
+const ARROWS_8 = ['↓','↙','←','↖','↑','↗','→','↘'];
+// Speed-tier arrows (heavier = faster)
+const TIER_ARROWS = ['↦','→','⇒','➔','➡','⟹'];
+
+function dirToArrow(deg) {
+  // deg is "coming from". Add 180 to get "going to", then snap to 8 directions
+  const going = (deg + 180) % 360;
+  const idx = Math.round(going / 45) % 8;
+  return ARROWS_8[idx];
+}
+
+function speedTierArrow(speed, unit) {
+  // Convert to km/h for tiering
+  let kmh = toKmh(speed, unit);
+  if (kmh < 5)  return { arrow: TIER_ARROWS[0], cls: 'tier-calm' };
+  if (kmh < 15) return { arrow: TIER_ARROWS[1], cls: 'tier-light' };
+  if (kmh < 30) return { arrow: TIER_ARROWS[2], cls: 'tier-moderate' };
+  if (kmh < 50) return { arrow: TIER_ARROWS[3], cls: 'tier-fresh' };
+  if (kmh < 75) return { arrow: TIER_ARROWS[4], cls: 'tier-strong' };
+  return { arrow: TIER_ARROWS[5], cls: 'tier-storm' };
+}
+
+function toKmh(speed, unit) {
+  if (unit === 'mph') return speed * 1.60934;
+  if (unit === 'ms')  return speed * 3.6;
+  return speed; // already km/h
+}
+
+function degToCompass(deg) {
+  const dirs = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+  return dirs[Math.round(deg / 22.5) % 16];
+}
+
+function formatSpeed(speed, unit) {
+  return Math.round(speed) + ' ' + unit;
+}
+
+function maxHourlySpeed(hours) {
+  return Math.max(...hours.map(h => h.speed), 1);
+}
+
+// ── API ──────────────────────────────────────────────────────────────────
+
+const CACHE = new Map();
+const CACHE_TTL = 60_000;
+let abortCtrl = null;
+
+function buildUrl(lat, lon, unit) {
+  // Open-Meteo wind_speed unit param
+  const wUnit = unit === 'ms' ? 'ms' : (unit === 'mph' ? 'mph' : 'kmh');
+  return `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
+    `&current=wind_speed_10m,wind_direction_10m,wind_gusts_10m` +
+    `&hourly=wind_speed_10m,wind_direction_10m,wind_gusts_10m` +
+    `&wind_speed_unit=${wUnit}` +
+    `&forecast_days=2&timezone=auto`;
+}
+
+async function fetchWind(lat, lon, unit) {
+  const key = `${lat},${lon},${unit}`;
+  const cached = CACHE.get(key);
+  if (cached && Date.now() - cached.ts < CACHE_TTL) return cached.data;
+
+  if (abortCtrl) abortCtrl.abort();
+  abortCtrl = new AbortController();
+
+  const url = buildUrl(lat, lon, unit);
+  const res = await fetch(url, { signal: abortCtrl.signal });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const json = await res.json();
+
+  // Parse current
+  const cur = json.current;
+  if (!cur) throw new Error('No current data returned');
+
+  // Find current hour index in hourly array
+  const nowIso = cur.time; // e.g. "2024-01-15T14:00"
+  const hourlyTimes = json.hourly.time;
+  let nowIdx = hourlyTimes.indexOf(nowIso);
+  if (nowIdx < 0) nowIdx = 0;
+
+  // Build 24h window starting from current hour
+  const hours = [];
+  for (let i = nowIdx; i < Math.min(nowIdx + 24, hourlyTimes.length); i++) {
+    const timeStr = hourlyTimes[i]; // "2024-01-15T14:00"
+    const date = new Date(timeStr);
+    hours.push({
+      time: date,
+      speed: json.hourly.wind_speed_10m[i],
+      dir: json.hourly.wind_direction_10m[i],
+      gust: json.hourly.wind_gusts_10m?.[i] ?? null,
+      isNow: i === nowIdx,
+    });
+  }
+
+  const data = {
+    now: {
+      speed: cur.wind_speed_10m,
+      dir: cur.wind_direction_10m,
+      gust: cur.wind_gusts_10m ?? null,
+      updatedAt: new Date(),
+    },
+    hours,
+    unit,
+  };
+
+  CACHE.set(key, { data, ts: Date.now() });
+  return data;
+}
+
+// ── UI State ──────────────────────────────────────────────────────────────
+
+let currentUnit = 'kmh';
+let debounceTimer = null;
+let lastData = null;
+
+const latInput  = document.getElementById('lat');
+const lonInput  = document.getElementById('lon');
+const statusDot  = document.getElementById('status-dot');
+const statusText = document.getElementById('status-text');
+const mainCard   = document.getElementById('main-card');
+const emptyNow   = document.getElementById('empty-now');
+const nowContent = document.getElementById('now-content');
+const bigArrow   = document.getElementById('big-arrow');
+const nowSpeed   = document.getElementById('now-speed');
+const nowUnit    = document.getElementById('now-unit');
+const compassLabel = document.getElementById('compass-label');
+const nowDetail  = document.getElementById('now-detail');
+const gustPill   = document.getElementById('gust-pill');
+const timeline   = document.getElementById('timeline');
+const toast      = document.getElementById('toast');
+
+// ── Render ──────────────────────────────────────────────────────────────
+
+function renderNow(data) {
+  const { now, unit } = data;
+  emptyNow.style.display = 'none';
+
+  bigArrow.textContent = dirToArrow(now.dir);
+  nowSpeed.textContent = Math.round(now.speed);
+  nowUnit.textContent  = unit === 'kmh' ? 'km/h' : unit === 'ms' ? 'm/s' : 'mph';
+  compassLabel.textContent = degToCompass(now.dir);
+
+  const fromCompass = degToCompass(now.dir);
+  const time = now.updatedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  nowDetail.innerHTML =
+    `FROM &nbsp;<span>${fromCompass}</span> &nbsp;·&nbsp; ${Math.round(now.dir)}° &nbsp;·&nbsp; Updated <span>${time}</span>`;
+
+  if (now.gust && now.gust > now.speed + 2) {
+    gustPill.style.display = 'inline-block';
+    gustPill.textContent = `GUSTS ${Math.round(now.gust)} ${unit === 'kmh' ? 'km/h' : unit}`;
+  } else {
+    gustPill.style.display = 'none';
+  }
+}
+
+function renderTimeline(data) {
+  const { hours, unit } = data;
+  if (!hours.length) {
+    timeline.innerHTML = '<div class="empty-state"><div>No hourly data</div></div>';
+    return;
+  }
+
+  const maxSpeed = maxHourlySpeed(hours);
+  timeline.innerHTML = '';
+
+  hours.forEach((h, i) => {
+    const col = document.createElement('div');
+    col.className = 'hour-col' + (h.isNow ? ' now-col' : '');
+
+    const hour = h.time.getHours();
+    const timeStr = hour.toString().padStart(2, '0') + ':00';
+
+    const tier = speedTierArrow(h.speed, unit);
+    const barPct = Math.round((h.speed / maxSpeed) * 100);
+    const arrow = dirToArrow(h.dir);
+
+    col.innerHTML = `
+      <div class="hour-time">${timeStr}</div>
+      <div class="hour-arrow ${tier.cls}" title="${Math.round(h.dir)}° ${degToCompass(h.dir)}">${arrow}</div>
+      <div class="hour-speed">${Math.round(h.speed)}</div>
+      <div class="hour-bar"><div class="hour-bar-fill" style="width:${barPct}%"></div></div>
+    `;
+
+    timeline.appendChild(col);
+  });
+
+  // Scroll to now
+  const nowCol = timeline.querySelector('.now-col');
+  if (nowCol) nowCol.scrollIntoView({ inline: 'start', behavior: 'smooth', block: 'nearest' });
+}
+
+function setStatus(state, msg) {
+  statusDot.className = 'status-dot' + (state ? ' ' + state : '');
+  statusText.textContent = msg;
+}
+
+function showToast(msg) {
+  toast.textContent = msg;
+  toast.classList.add('visible');
+  setTimeout(() => toast.classList.remove('visible'), 3500);
+}
+
+// ── Fetch & render ──────────────────────────────────────────────────────
+
+async function refresh() {
+  const lat = parseFloat(latInput.value);
+  const lon = parseFloat(lonInput.value);
+
+  if (isNaN(lat) || isNaN(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+    setStatus('', 'Invalid coordinates');
+    return;
+  }
+
+  setStatus('loading', 'Fetching wind data…');
+
+  try {
+    const data = await fetchWind(lat.toFixed(4), lon.toFixed(4), currentUnit);
+    lastData = data;
+    renderNow(data);
+    renderTimeline(data);
+    setStatus('ok', `Data loaded · ${lat.toFixed(2)}, ${lon.toFixed(2)}`);
+    updateUrl(lat, lon);
+  } catch (err) {
+    if (err.name === 'AbortError') return;
+    console.error(err);
+    setStatus('error', 'Fetch failed');
+    showToast('Could not fetch wind data — ' + (err.message || 'network error'));
+  }
+}
+
+function debounceRefresh() {
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(refresh, 600);
+}
+
+// ── URL sharing ─────────────────────────────────────────────────────────
+
+function updateUrl(lat, lon) {
+  const url = new URL(window.location);
+  url.searchParams.set('lat', lat.toFixed(4));
+  url.searchParams.set('lon', lon.toFixed(4));
+  url.searchParams.set('unit', currentUnit);
+  window.history.replaceState({}, '', url);
+}
+
+function loadFromUrl() {
+  const p = new URLSearchParams(window.location.search);
+  if (p.has('lat')) latInput.value = p.get('lat');
+  if (p.has('lon')) lonInput.value = p.get('lon');
+  if (p.has('unit')) {
+    currentUnit = p.get('unit');
+    document.querySelectorAll('.unit-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.unit === currentUnit);
+    });
+  }
+}
+
+// ── Random place ────────────────────────────────────────────────────────
+
+const RANDOM_PLACES = [
+  [64.1355, -21.8954, 'Reykjavik'],
+  [-33.8688, 151.2093, 'Sydney'],
+  [55.6761, 12.5683, 'Copenhagen'],
+  [-22.9068, -43.1729, 'Rio'],
+  [59.3293, 18.0686, 'Stockholm'],
+  [1.3521, 103.8198, 'Singapore'],
+  [48.8566, 2.3522, 'Paris'],
+  [19.4326, -99.1332, 'Mexico City'],
+  [-54.8019, -68.3030, 'Ushuaia'],
+  [70.0, 25.0, 'Arctic Norway'],
+  [-77.8500, 166.6667, 'McMurdo'],
+  [25.2048, 55.2708, 'Dubai'],
+];
+
+document.getElementById('random-btn').addEventListener('click', () => {
+  const place = RANDOM_PLACES[Math.floor(Math.random() * RANDOM_PLACES.length)];
+  latInput.value = place[0];
+  lonInput.value = place[1];
+  setStatus('', `📍 ${place[2]}`);
+  clearPresetActive();
+  refresh();
+});
+
+// ── Events ───────────────────────────────────────────────────────────────
+
+function clearPresetActive() {
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+}
+
+document.querySelectorAll('.preset-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    latInput.value = btn.dataset.lat;
+    lonInput.value = btn.dataset.lon;
+    clearPresetActive();
+    btn.classList.add('active');
+    refresh();
+  });
+});
+
+document.querySelectorAll('.unit-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    currentUnit = btn.dataset.unit;
+    document.querySelectorAll('.unit-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    CACHE.clear(); // invalidate cache on unit change
+    if (latInput.value && lonInput.value) refresh();
+  });
+});
+
+latInput.addEventListener('input', () => { clearPresetActive(); debounceRefresh(); });
+lonInput.addEventListener('input', () => { clearPresetActive(); debounceRefresh(); });
+
+// ── Init ─────────────────────────────────────────────────────────────────
+
+loadFromUrl();
+refresh();
+</script>
+</body>
+</html>
