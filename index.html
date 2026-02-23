@@ -368,10 +368,6 @@
 </header>
 
 <div class="controls-bar">
-  <button onclick="game.newGame('arrows')">Arrows</button>
-  <button onclick="game.newGame('geo')">Geometry</button>
-  <button onclick="game.newGame('math')">Math</button>
-  <button onclick="game.newGame('mixed')">Mixed</button>
   <button onclick="game.newGame()">New Game</button>
 </div>
 
@@ -400,62 +396,49 @@
 <script>
 'use strict';
 
-// ─── PALETTES ────────────────────────────────────────────────────────────────
+// ─── SYMBOL POOL ─────────────────────────────────────────────────────────────
+// Full library of individual unicode symbols. Each game picks 8 of these.
+// Only identical symbols match each other.
 
-const PALETTES = {
-  arrows: {
-    name: 'Arrows',
-    families: [
-      { id: 'up',    glyphs: ['↑','⇑','↟','⇧','↿'],    color: '#ff7eb3', label: 'Up' },
-      { id: 'down',  glyphs: ['↓','⇓','↡','⇩','⇂'],    color: '#6bcbff', label: 'Down' },
-      { id: 'left',  glyphs: ['←','⇐','↞','⇦','↼'],    color: '#69ff47', label: 'Left' },
-      { id: 'right', glyphs: ['→','⇒','↠','⇨','⇀'],    color: '#ffd76b', label: 'Right' },
-      { id: 'ne',    glyphs: ['↗','⇗','↝','⤴','↱'],    color: '#e040fb', label: 'Diagonal ↗' },
-      { id: 'sw',    glyphs: ['↙','⇙','↜','⤵','↲'],    color: '#00e5ff', label: 'Diagonal ↙' },
-      { id: 'loop',  glyphs: ['↺','↻','⟳','⟲','↷'],    color: '#ff9800', label: 'Rotate' },
-      { id: 'bi',    glyphs: ['↔','↕','⇔','⇕','⤢'],    color: '#f44336', label: 'Bidirectional' },
-    ]
-  },
-  geo: {
-    name: 'Geometry',
-    families: [
-      { id: 'square',   glyphs: ['■','▪','▬','▮','▰'],  color: '#ff7eb3', label: 'Square' },
-      { id: 'circle',   glyphs: ['●','◉','◎','⬤','◍'],  color: '#6bcbff', label: 'Circle' },
-      { id: 'triangle', glyphs: ['▲','▴','△','▵','⯅'],  color: '#69ff47', label: 'Triangle' },
-      { id: 'diamond',  glyphs: ['◆','◈','◇','⬧','⬦'],  color: '#ffd76b', label: 'Diamond' },
-      { id: 'star',     glyphs: ['★','☆','✦','✧','⁕'],  color: '#e040fb', label: 'Star' },
-      { id: 'hex',      glyphs: ['⬡','⬢','⬣','⎔','⌬'],  color: '#00e5ff', label: 'Hex' },
-      { id: 'cross',    glyphs: ['✚','✛','✜','✝','☩'],  color: '#ff9800', label: 'Cross' },
-      { id: 'arrow3d',  glyphs: ['⬆','⬇','⬅','⮕','⬈'], color: '#f44336', label: 'Arrow Block' },
-    ]
-  },
-  math: {
-    name: 'Math',
-    families: [
-      { id: 'plus',    glyphs: ['+','⊕','⊞','⨁','⟴'],   color: '#ff7eb3', label: 'Addition' },
-      { id: 'minus',   glyphs: ['−','⊖','⊟','⨪','⟵'],   color: '#6bcbff', label: 'Subtraction' },
-      { id: 'times',   glyphs: ['×','⊗','⊠','⨯','✕'],    color: '#69ff47', label: 'Multiply' },
-      { id: 'div',     glyphs: ['÷','⊘','⊙','⨸','∕'],    color: '#ffd76b', label: 'Divide' },
-      { id: 'infty',   glyphs: ['∞','∝','≈','≅','≃'],     color: '#e040fb', label: 'Infinity' },
-      { id: 'sum',     glyphs: ['∑','∏','∫','∬','∭'],     color: '#00e5ff', label: 'Sigma' },
-      { id: 'delta',   glyphs: ['Δ','∇','∂','∀','∃'],     color: '#ff9800', label: 'Delta' },
-      { id: 'set',     glyphs: ['∈','∉','⊂','⊃','∩'],     color: '#f44336', label: 'Set' },
-    ]
-  },
-  mixed: {
-    name: 'Mixed',
-    families: [
-      { id: 'up',      glyphs: ['↑','⇑','⬆','↟','⇧'],    color: '#ff7eb3', label: 'Up Arrow' },
-      { id: 'circle',  glyphs: ['●','◉','◎','⬤','◍'],    color: '#6bcbff', label: 'Circle' },
-      { id: 'star',    glyphs: ['★','☆','✦','✧','⁕'],     color: '#ffd76b', label: 'Star' },
-      { id: 'diamond', glyphs: ['◆','◇','◈','⬦','⬧'],    color: '#e040fb', label: 'Diamond' },
-      { id: 'plus',    glyphs: ['+','⊕','⊞','⨁','✚'],    color: '#69ff47', label: 'Plus' },
-      { id: 'sum',     glyphs: ['∑','∏','∫','Δ','∇'],     color: '#00e5ff', label: 'Sigma' },
-      { id: 'loop',    glyphs: ['↺','↻','⟳','⟲','↷'],    color: '#ff9800', label: 'Rotate' },
-      { id: 'hex',     glyphs: ['⬡','⬢','⬣','⎔','⌬'],    color: '#f44336', label: 'Hex' },
-    ]
+const ALL_SYMBOLS = [
+  // Arrows
+  '↑','↓','←','→','↗','↙','↺','↻','↔','↕',
+  '⇑','⇓','⇐','⇒','⇗','⇙','⇔','⇕','⬆','⬇','⬅','⮕',
+  '↟','↡','↞','↠','⟳','⟲','⤴','⤵','↷','↸','↱','↲',
+  '↿','⇂','↼','⇀','⇧','⇩','⇦','⇨','⤢','⬈',
+  // Geometry
+  '■','▪','▬','▮','▰','●','◉','◎','⬤','◍',
+  '▲','▴','△','▵','⯅','◆','◈','◇','⬧','⬦',
+  '★','☆','✦','✧','⁕','⬡','⬢','⬣','⎔','⌬',
+  '✚','✛','✜','✝','☩',
+  // Math
+  '⊕','⊞','⨁','⊖','⊟','⨪','⊗','⊠','⨯','✕',
+  '⊘','⊙','⨸','∞','∝','≈','≅','≃',
+  '∑','∏','∫','∬','∭','Δ','∇','∂','∀','∃',
+  '∈','∉','⊂','⊃','∩','∪','⊄','⊆','⊇','≠',
+];
+
+// 8 vivid colors assigned per-game to the 8 chosen symbols
+const SYMBOL_COLORS = [
+  '#ff7eb3','#6bcbff','#69ff47','#ffd76b',
+  '#e040fb','#00e5ff','#ff9800','#f44336',
+];
+
+// Per-game state: which 8 symbols are active, and their color map
+let activeSymbols = [];    // array of 8 glyph strings
+let glyphColorMap = {};    // glyph → color string
+
+function pickActiveSymbols(rng) {
+  // Fisher-Yates shuffle of the pool, take first 8
+  const pool = ALL_SYMBOLS.slice();
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
   }
-};
+  activeSymbols = pool.slice(0, 8);
+  glyphColorMap = {};
+  activeSymbols.forEach((g, i) => { glyphColorMap[g] = SYMBOL_COLORS[i]; });
+}
 
 // ─── CONSTANTS ───────────────────────────────────────────────────────────────
 
@@ -476,34 +459,32 @@ function mulberry32(seed) {
 
 // ─── BOARD LOGIC ─────────────────────────────────────────────────────────────
 
-function makeTile(familyId, glyphs, rng) {
-  const glyph = glyphs[Math.floor(rng() * Math.min(3, glyphs.length))];
-  return { familyId, glyph, special: null };
+function makeTile(glyph) {
+  return { glyph, special: null };
 }
 
-function generateBoard(palette, rng) {
-  const families = palette.families;
+function generateBoard(rng) {
   const board = [];
   for (let r = 0; r < ROWS; r++) {
     board.push([]);
     for (let c = 0; c < COLS; c++) {
       let tile, attempts = 0;
       do {
-        const fam = families[Math.floor(rng() * families.length)];
-        tile = makeTile(fam.id, fam.glyphs, rng);
+        const glyph = activeSymbols[Math.floor(rng() * activeSymbols.length)];
+        tile = makeTile(glyph);
         attempts++;
-      } while (attempts < 20 && wouldMatch(board, r, c, tile.familyId));
+      } while (attempts < 20 && wouldMatch(board, r, c, tile.glyph));
       board[r].push(tile);
     }
   }
   return board;
 }
 
-function wouldMatch(board, r, c, famId) {
+function wouldMatch(board, r, c, glyph) {
   // Check left
-  if (c >= 2 && board[r][c-1]?.familyId === famId && board[r][c-2]?.familyId === famId) return true;
+  if (c >= 2 && board[r][c-1]?.glyph === glyph && board[r][c-2]?.glyph === glyph) return true;
   // Check up
-  if (r >= 2 && board[r-1]?.[c]?.familyId === famId && board[r-2]?.[c]?.familyId === famId) return true;
+  if (r >= 2 && board[r-1]?.[c]?.glyph === glyph && board[r-2]?.[c]?.glyph === glyph) return true;
   return false;
 }
 
@@ -514,7 +495,7 @@ function findMatches(board) {
   for (let r = 0; r < ROWS; r++) {
     let run = 1;
     for (let c = 1; c < COLS; c++) {
-      if (board[r][c] && board[r][c-1] && board[r][c].familyId === board[r][c-1].familyId) {
+      if (board[r][c] && board[r][c-1] && board[r][c].glyph === board[r][c-1].glyph) {
         run++;
       } else {
         if (run >= 3) for (let k = c-run; k < c; k++) matched.add(r*COLS+k);
@@ -528,7 +509,7 @@ function findMatches(board) {
   for (let c = 0; c < COLS; c++) {
     let run = 1;
     for (let r = 1; r < ROWS; r++) {
-      if (board[r][c] && board[r-1][c] && board[r][c].familyId === board[r-1][c].familyId) {
+      if (board[r][c] && board[r-1][c] && board[r][c].glyph === board[r-1][c].glyph) {
         run++;
       } else {
         if (run >= 3) for (let k = r-run; k < r; k++) matched.add(k*COLS+c);
@@ -551,18 +532,18 @@ function detectSpecials(board, swapR, swapC, swapDir) {
   // Check horizontal run through sr,sc
   const checkCell = (row, col) => {
     if (row < 0 || row >= ROWS || col < 0 || col >= COLS || !board[row][col]) return [];
-    const fam = board[row][col].familyId;
+    const glyph = board[row][col].glyph;
 
     // Horizontal run
     let hStart = col, hEnd = col;
-    while (hStart > 0 && board[row][hStart-1]?.familyId === fam) hStart--;
-    while (hEnd < COLS-1 && board[row][hEnd+1]?.familyId === fam) hEnd++;
+    while (hStart > 0 && board[row][hStart-1]?.glyph === glyph) hStart--;
+    while (hEnd < COLS-1 && board[row][hEnd+1]?.glyph === glyph) hEnd++;
     const hLen = hEnd - hStart + 1;
 
     // Vertical run
     let vStart = row, vEnd = row;
-    while (vStart > 0 && board[vStart-1]?.[col]?.familyId === fam) vStart--;
-    while (vEnd < ROWS-1 && board[vEnd+1]?.[col]?.familyId === fam) vEnd++;
+    while (vStart > 0 && board[vStart-1]?.[col]?.glyph === glyph) vStart--;
+    while (vEnd < ROWS-1 && board[vEnd+1]?.[col]?.glyph === glyph) vEnd++;
     const vLen = vEnd - vStart + 1;
 
     const result = [];
@@ -592,18 +573,17 @@ function applyGravity(board) {
   }
 }
 
-function refillBoard(board, palette, rng) {
-  const families = palette.families;
+function refillBoard(board, rng) {
   const newCells = [];
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
       if (board[r][c] === null) {
         let tile, attempts = 0;
         do {
-          const fam = families[Math.floor(rng() * families.length)];
-          tile = makeTile(fam.id, fam.glyphs, rng);
+          const glyph = activeSymbols[Math.floor(rng() * activeSymbols.length)];
+          tile = makeTile(glyph);
           attempts++;
-        } while (attempts < 10 && wouldMatch(board, r, c, tile.familyId));
+        } while (attempts < 10 && wouldMatch(board, r, c, tile.glyph));
         board[r][c] = tile;
         newCells.push({ r, c });
       }
@@ -652,7 +632,6 @@ function shuffleBoard(board, rng) {
 
 const game = (() => {
   let board = [];
-  let palette = PALETTES.mixed;
   let rng = mulberry32(Date.now());
   let score = 0;
   let best = parseInt(localStorage.getItem('um3_best') || '0');
@@ -672,9 +651,9 @@ const game = (() => {
 
 /* Setup */
 function newGame(paletteName) {
-    palette = PALETTES[paletteName] || PALETTES[Object.keys(PALETTES)[Math.floor(Math.random() * 4)]];
     rng = mulberry32(Date.now() ^ Math.random() * 0xffffffff);
-    board = generateBoard(palette, rng);
+    pickActiveSymbols(rng);
+    board = generateBoard(rng);
     score = 0;
     selected = null;
     busy = false;
@@ -725,7 +704,7 @@ function newGame(paletteName) {
 
     if (t) {
       el.textContent = t.glyph;
-      applyFamilyStyle(el, t.familyId);
+      applyGlyphStyle(el, t.glyph);
       if (t.special) {
         el.classList.add('special-' + t.special);
         const ind = document.createElement('span');
@@ -741,9 +720,9 @@ function newGame(paletteName) {
     return el;
   }
 
-  function applyFamilyStyle(el, familyId) {
-    const fam = palette.families.find(f => f.id === familyId);
-    if (fam) el.style.color = fam.color;
+  function applyGlyphStyle(el, glyph) {
+    const color = glyphColorMap[glyph];
+    if (color) el.style.color = color;
   }
 
   function getTileEl(r, c) {
@@ -759,8 +738,8 @@ function newGame(paletteName) {
 
   function renderLegend() {
     const el = document.getElementById('legend');
-    el.innerHTML = palette.families.map(f =>
-      `<span class="legend-item"><span class="legend-swatch" style="background:${f.color}"></span>${f.label}: ${f.glyphs[0]}</span>`
+    el.innerHTML = activeSymbols.map(g =>
+      `<span class="legend-item"><span class="legend-swatch" style="background:${glyphColorMap[g]}"></span><span style="color:${glyphColorMap[g]}">${g}</span></span>`
     ).join('');
   }
 
@@ -1000,7 +979,7 @@ function newGame(paletteName) {
       await sleep(80);
 
       // Refill
-      const newCells = refillBoard(board, palette, rng);
+      const newCells = refillBoard(board, rng);
       await animateRefill(newCells);
       await sleep(100);
 
@@ -1111,7 +1090,7 @@ function newGame(paletteName) {
   // ── Init ──
 
   bestEl.textContent = best;
-  newGame('mixed');
+  newGame();
 
   return { newGame, dismissOverlay };
 })();
